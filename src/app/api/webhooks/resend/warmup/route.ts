@@ -159,24 +159,40 @@ export async function POST(request: Request) {
     });
 
     // Update recipient email stats
-    await supabaseAdmin
+    const { data: emailData } = await supabaseAdmin
       .from('warmup_emails')
-      .update({
-        daily_receive_count: supabaseAdmin.sql`daily_receive_count + 1`,
-        total_received: supabaseAdmin.sql`total_received + 1`,
-        last_received_at: new Date().toISOString(),
-      })
-      .eq('email', to);
+      .select('daily_receive_count, total_received')
+      .eq('email', to)
+      .single();
+
+    if (emailData) {
+      await supabaseAdmin
+        .from('warmup_emails')
+        .update({
+          daily_receive_count: (emailData.daily_receive_count || 0) + 1,
+          total_received: (emailData.total_received || 0) + 1,
+          last_received_at: new Date().toISOString(),
+        })
+        .eq('email', to);
+    }
 
     // Update thread
-    await supabaseAdmin
+    const { data: threadData } = await supabaseAdmin
       .from('warmup_threads')
-      .update({
-        message_count: supabaseAdmin.sql`message_count + 1`,
-        last_message_id: messageId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', thread.id);
+      .select('message_count')
+      .eq('id', thread.id)
+      .single();
+
+    if (threadData) {
+      await supabaseAdmin
+        .from('warmup_threads')
+        .update({
+          message_count: (threadData.message_count || 0) + 1,
+          last_message_id: messageId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', thread.id);
+    }
 
     // Update stats
     const recipientDomain = to.split('@')[1];
