@@ -119,23 +119,29 @@ export async function sendWarmupEmail({
     const today = new Date().toISOString().split('T')[0];
     const senderDomain = from.split('@')[1];
 
-    await supabaseAdmin.rpc('upsert_warmup_stat', {
-      p_date: today,
-      p_domain: senderDomain,
-      p_field: 'emails_sent',
-      p_increment: 1,
-    }).catch(() => {
-      // Fallback if RPC doesn't exist - do a manual upsert
-      supabaseAdmin
+    // Upsert warmup stats - get existing count and increment
+    const { data: existingStat } = await supabaseAdmin
+      .from('warmup_stats')
+      .select('emails_sent')
+      .eq('date', today)
+      .eq('domain', senderDomain)
+      .single();
+
+    if (existingStat) {
+      await supabaseAdmin
         .from('warmup_stats')
-        .upsert({
-          date: today,
-          domain: senderDomain,
-          emails_sent: 1,
-        }, {
-          onConflict: 'date,domain',
-        });
-    });
+        .update({
+          emails_sent: (existingStat.emails_sent || 0) + 1,
+        })
+        .eq('date', today)
+        .eq('domain', senderDomain);
+    } else {
+      await supabaseAdmin.from('warmup_stats').insert({
+        date: today,
+        domain: senderDomain,
+        emails_sent: 1,
+      });
+    }
 
     return { success: true, messageId };
   } catch (error) {
