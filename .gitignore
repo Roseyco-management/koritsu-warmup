@@ -28,6 +28,13 @@ yarn-error.log*
 .env*.local
 .env
 
+# resend webhook secrets
+resend-webhook-secrets.json
+
+# deployment scripts with secrets
+add-universal-env-vars.js
+add-stripe-env-vars.js
+
 # vercel
 .vercel
 
